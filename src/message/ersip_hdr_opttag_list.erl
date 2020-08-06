@@ -19,7 +19,8 @@
          build/2,
          assemble/1,
          assemble_bin/1,
-         raw/1
+         raw/1,
+         is_member/2
         ]).
 -export_type([option_tag_list/0]).
 
@@ -110,6 +111,11 @@ assemble_bin({option_tag_list, _} = OptionTagList) ->
 -spec raw(option_tag_list()) -> raw().
 raw({option_tag_list, _} = OTL) ->
     [ersip_option_tag:to_binary(OT) || OT <- to_list(OTL)].
+
+%% @doc Check if tags list contain a tag
+-spec is_member(ersip_option_tag:option_tag(), option_tag_list()) -> boolean().
+is_member(T, {option_tag_list, S}) ->
+    gb_sets:is_member(T, S).
 
 %%===================================================================
 %% Internal implementation
