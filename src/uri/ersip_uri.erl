@@ -405,7 +405,12 @@ gen_param(Name, #uri{data = #sip_uri_data{params = P}}) when is_binary(Name) ->
                 _ -> undefined
             end;
         error ->
-            maps:get(ersip_bin:to_lower(Name), P, undefined)
+            case application:get_env(ersip, cast_param_to_lower, true) of
+                false ->
+                    maps:get(Name, P, undefined);
+                true ->
+                    maps:get(Name, ersip_bin:to_lower(P), undefined)
+            end
     end;
 gen_param(Name, #uri{} = URI) when is_binary(Name) ->
     error({sip_uri_expected, URI}).
@@ -439,7 +444,12 @@ clear_gen_param(Name, #uri{data = #sip_uri_data{params = P} = D} = U) when is_bi
         {ok, KnownParam} ->
             U#uri{data = D#sip_uri_data{params = maps:remove(KnownParam, P)}};
         error ->
-            U#uri{data = D#sip_uri_data{params = maps:remove(ersip_bin:to_lower(Name), P)}}
+            case application:get_env(ersip, cast_param_to_lower, true) of
+                false ->
+                    U#uri{data = D#sip_uri_data{params = maps:remove(Name, P)}};
+                true ->
+                    U#uri{data = D#sip_uri_data{params = maps:remove(ersip_bin:to_lower(Name), P)}}
+            end
     end;
 clear_gen_param(Name, #uri{} = URI) when is_binary(Name) ->
     error({sip_uri_expected, URI}).
@@ -782,15 +792,27 @@ maybe_add_headers({ok, #sip_uri_data{} = SIPData}, Headers) ->
 -spec parse_and_add_param(binary(), sip_uri_data()) -> sip_uri_data() | {error, term()}.
 parse_and_add_param(Param, SIPData) ->
     Pair =
-        case binary:split(Param, <<"=">>) of
-            [Name] ->
-                {ersip_bin:to_lower(unquote_hex(Name)), Name, <<>>};
-            [Name, Value] ->
-                {ersip_bin:to_lower(unquote_hex(Name)), Name, Value}
+        case application:get_env(ersip, cast_param_to_lower, true) of
+            false ->
+                case binary:split(Param, <<"=">>) of
+                    [Name] ->
+                        {unquote_hex(Name), Name, <<>>};
+                    [Name, Value] ->
+                        {unquote_hex(Name), Name, Value}
+                end;
+            true ->
+                case binary:split(Param, <<"=">>) of
+                    [Name] ->
+                        {ersip_bin:to_lower(unquote_hex(Name)), Name, <<>>};
+                    [Name, Value] ->
+                        {ersip_bin:to_lower(unquote_hex(Name)), Name, Value}
+                end
         end,
 
-    case Pair of
-        {<<"transport">>, _, V} ->
+    LowerName = ersip_bin:to_lower(element(1, Pair)),
+    case LowerName of
+        <<"transport">> ->
+            V = element(3, Pair),
             %% transport-param   =  "transport="
             %%                      ( "udp" / "tcp" / "sctp" / "tls"
             %%                      / other-transport)
@@ -803,7 +825,8 @@ parse_and_add_param(Param, SIPData) ->
                     set_param(transport, T, SIPData)
             end;
 
-        {<<"maddr">>, _, A} ->
+        <<"maddr">> ->
+            A = element(3, Pair),
             %% maddr-param       =  "maddr=" host
             case ersip_host:parse(A) of
                 {ok, Host, <<>>} ->
@@ -812,7 +835,8 @@ parse_and_add_param(Param, SIPData) ->
                     {error, {invalid_maddr, A}}
             end;
 
-        {<<"user">>, _, U} ->
+        <<"user">> ->
+            U = element(3, Pair),
             %%  user-param        =  "user=" ( "phone" / "ip" / other-user)
             case ersip_bin:to_lower(U) of
                 <<"phone">> ->
@@ -828,10 +852,11 @@ parse_and_add_param(Param, SIPData) ->
                     end
             end;
 
-        {<<"lr">>, _, _} ->
+        <<"lr">> ->
             set_param(lr, true, SIPData);
 
-        {<<"ttl">>, _, TTLBin} ->
+        <<"ttl">> ->
+            TTLBin = element(3, Pair),
             case catch binary_to_integer(TTLBin) of
                 TTL when is_integer(TTL) andalso TTL >= 0 andalso TTL =< 255 ->
                     set_param(ttl, TTL, SIPData);
@@ -839,7 +864,8 @@ parse_and_add_param(Param, SIPData) ->
                     {error, {einval, ttl}}
             end;
 
-        {Other, OrigName, OtherVal} ->
+        _ ->
+            {Other, OrigName, OtherVal} = Pair,
             case is_pname(OrigName) andalso is_pvalue(OtherVal) of
                 true ->
                     set_param(Other, OtherVal, SIPData);
