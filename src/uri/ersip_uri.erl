@@ -123,7 +123,7 @@
                         lr        => true
                        }.
 -type uri_headers() ::  #{binary() => binary()}.
--type scheme()   :: {scheme, sip | sips | binary()}.
+-type scheme()   :: {scheme, sip | sips | tel | binary()}.
 
 -type uri_param_name() :: known_param() | binary().
 
@@ -438,7 +438,7 @@ gen_param(Name, #uri{data = #sip_uri_data{params = P}}) when is_binary(Name) ->
                 _ -> undefined
             end;
         error ->
-            case application:get_env(ersip, cast_param_to_lower, true) of
+            case ersip_config:uri_param_to_lower() of
                 false ->
                     maps:get(Name, P, undefined);
                 true ->
@@ -457,7 +457,7 @@ gen_param(Name, #uri{data = #tel_uri_data{params = P}}) when is_binary(Name) ->
                 _ -> undefined
             end;
         error ->
-            case application:get_env(ersip, cast_param_to_lower, true) of
+            case ersip_config:uri_param_to_lower() of
                 false ->
                     maps:get(Name, P, undefined);
                 true ->
@@ -509,7 +509,7 @@ clear_gen_param(Name, #uri{data = #sip_uri_data{params = P} = D} = U) when is_bi
         {ok, KnownParam} ->
             U#uri{data = D#sip_uri_data{params = maps:remove(KnownParam, P)}};
         error ->
-            case application:get_env(ersip, cast_param_to_lower, true) of
+            case ersip_config:uri_param_to_lower() of
                 false ->
                     U#uri{data = D#sip_uri_data{params = maps:remove(Name, P)}};
                 true ->
@@ -521,7 +521,7 @@ clear_gen_param(Name, #uri{data = #tel_uri_data{params = P} = D} = U) when is_bi
         {ok, KnownParam} ->
             U#uri{data = D#tel_uri_data{params = maps:remove(KnownParam, P)}};
         error ->
-            case application:get_env(ersip, cast_param_to_lower, true) of
+            case ersip_config:uri_param_to_lower() of
                 false ->
                     U#uri{data = D#tel_uri_data{params = maps:remove(Name, P)}};
                 true ->
@@ -886,7 +886,7 @@ parse_port(Bin) ->
 %% uri-parameters    =  *( ";" uri-parameter)
 %% uri-parameter     =  transport-param / user-param / method-param
 %%                      / ttl-param / maddr-param / lr-param / other-param
--spec maybe_add_params(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
+-spec maybe_add_params(sip_uri_parse_result() | tel_uri_parse_result(), binary()) -> sip_uri_parse_result() | tel_uri_parse_result().
 maybe_add_params({error, _} = Err, _) ->
     Err;
 maybe_add_params({ok, #sip_uri_data{} = SIPData}, <<>>) ->
@@ -926,7 +926,7 @@ maybe_add_params({ok, #tel_uri_data{} = SIPData}, ParamsBin) ->
             Error
     end.
 
--spec maybe_add_headers(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
+-spec maybe_add_headers(sip_uri_parse_result() | tel_uri_parse_result(), binary()) -> sip_uri_parse_result() | tel_uri_parse_result().
 maybe_add_headers({error, _} = Err, _) ->
     Err;
 maybe_add_headers({ok, #sip_uri_data{} = SIPData}, <<>>) ->
@@ -945,7 +945,7 @@ maybe_add_headers({ok, #tel_uri_data{} = SIPData}, Headers) ->
 -spec parse_and_add_param(binary(), sip_uri_data() | tel_uri_data()) -> sip_uri_data() | tel_uri_data() | {error, term()}.
 parse_and_add_param(Param, SIPData) ->
     Pair =
-        case application:get_env(ersip, cast_param_to_lower, true) of
+        case ersip_config:uri_param_to_lower() of
             false ->
                 case binary:split(Param, <<"=">>) of
                     [Name] ->
