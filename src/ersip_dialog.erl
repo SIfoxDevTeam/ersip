@@ -65,6 +65,7 @@
                  local_tag           :: ersip_hdr_fromto:tag(),
                  local_uri           :: ersip_uri:uri(),
                  local_seq  = empty  :: ersip_hdr_cseq:cseq_num() | empty,
+                 local_invite_seq  = empty  :: ersip_hdr_cseq:cseq_num() | empty,
                  remote_tag          :: ersip_hdr_fromto:tag() | undefined,
                  remote_uri          :: ersip_uri:uri(),
                  remote_seq = empty  :: ersip_hdr_cseq:cseq_num() | empty,
@@ -246,7 +247,21 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     Req3  = ersip_sipmsg:set(callid, Dialog0#dialog.callid, Req2),
     Req4 = maybe_update_cseq(Req0, Dialog0, Req3),
     CSeq = ersip_sipmsg:get(cseq, Req4),
-    Dialog1 = Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)},
+    ACK = ersip_method:ack(),
+    CANCEL = ersip_method:cancel(),
+    INVITE = ersip_method:invite(),
+    Dialog1 =
+        case ersip_sipmsg:method(Req0) of
+            Method when Method == ACK orelse Method == CANCEL ->
+                %% Do not update local_seq for ACK and CANCEL
+                Dialog0;
+            INVITE ->
+                Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq),
+                    local_invite_seq = ersip_hdr_cseq:number(CSeq)};
+            _ ->
+                Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)}
+        end,
+
     %% The UAC uses the remote target and route set to build the
     %% Request-URI and Route header field of the request.
     #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog1,
@@ -763,7 +778,7 @@ uas_maybe_update_target(ReqSipMsg, target_refresh, #dialog{} = Dialog) ->
 maybe_update_cseq(InReq, #dialog{local_seq = empty}, Req) ->
     CSeq = get_or_create(cseq, InReq),
     ersip_sipmsg:set(cseq, CSeq, Req);
-maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
+maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, local_invite_seq = LocalInviteSeq}, Req) ->
     ACK = ersip_method:ack(),
     CANCEL = ersip_method:cancel(),
     case ersip_sipmsg:method(InReq) of
@@ -771,8 +786,11 @@ maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
             case ersip_sipmsg:find(cseq, InReq) of
                 {ok, CSeq} ->
                     ersip_sipmsg:set(cseq, CSeq, Req);
+                not_found when is_integer(LocalInviteSeq) ->
+                    %% Use INIVTE Seq for ACK/CANCEL. It is possible to have another requests between INVITE and ACK/CANCEL, for example PRACK
+                    set_cseq(InReq, LocalInviteSeq-1, Req);
                 not_found ->
-                    set_cseq(InReq, LocalSeq-1, Req)
+                    set_cseq(InReq, LocalInviteSeq-1, Req)
             end;
         _ ->
             set_cseq(InReq, LocalSeq, Req)
