@@ -790,7 +790,7 @@ maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, local_invite_seq = LocalI
                     %% Use INIVTE Seq for ACK/CANCEL. It is possible to have another requests between INVITE and ACK/CANCEL, for example PRACK
                     set_cseq(InReq, LocalInviteSeq-1, Req);
                 not_found ->
-                    set_cseq(InReq, LocalInviteSeq-1, Req)
+                    set_cseq(InReq, LocalSeq-1, Req)
             end;
         _ ->
             set_cseq(InReq, LocalSeq, Req)
