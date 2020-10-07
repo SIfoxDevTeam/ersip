@@ -417,6 +417,7 @@ do_uas_create(Request, Response) ->
             remote_target = ersip_hdr_contact:uri(ReqContact),
             %% The local sequence number MUST be empty.
             local_seq  = empty,
+            local_invite_seq = empty,
             %% The remote sequence number MUST be set to the value of the
             %% sequence number in the CSeq header field of the request.  The
             %% local sequence number MUST be empty.
@@ -474,6 +475,15 @@ uac_create(Request, Response) ->
     ReqFrom       = ersip_sipmsg:get(from,    ReqSipMsg),
     ReqTo         = ersip_sipmsg:get(to,      ReqSipMsg),
 
+    LocalSeq = ersip_hdr_cseq:number(ReqCseq),
+    INVITE = ersip_method:invite(),
+    LocalInviteSeq =
+        case ersip_sipmsg:method(ReqSipMsg) of
+            INVITE ->
+                LocalSeq;
+            _ ->
+                empty
+        end,
     #dialog{secure    = IsSecure,
             route_set = RouteSet,
             %% The remote target MUST be set to the URI from the
@@ -481,7 +491,8 @@ uac_create(Request, Response) ->
             remote_target = RTargetURI,
             %% The local sequence number MUST be set to the value of the sequence
             %% number in the CSeq header field of the request.
-            local_seq    = ersip_hdr_cseq:number(ReqCseq),
+            local_seq    = LocalSeq,
+            local_invite_seq = LocalInviteSeq,
             %% The remote sequence number MUST be empty
             remote_seq   = empty,
             %% The call identifier component of the dialog ID MUST be
