@@ -72,7 +72,8 @@
                  remote_target       :: ersip_uri:uri(),
                  secure              :: boolean(),
                  route_set           :: ersip_route_set:route_set(),
-                 state               :: state()
+                 state               :: state(),
+                 request_method      :: ersip_method:method()
                 }).
 -record(dialog_id, {local_tag  :: ersip_hdr_fromto:tag_key(),
                     remote_tag :: ersip_hdr_fromto:tag_key() | undefined,
@@ -179,7 +180,7 @@ uas_create(Request, Response) ->
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
     UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
     {Dialog, UpdatedResp};
-uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
+uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early, request_method = RequestMethod} = Dialog) ->
     %% Independent of the method, if a request outside of a dialog generates
     %% a non-2xx final response, any early dialogs created through
     %% provisional responses to that request are terminated.
@@ -187,9 +188,15 @@ uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
         Status when Status >= 300 ->
             terminate_dialog;
         _ ->
-            State = state_by_response(RespSipMsg),
             UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
-            {Dialog#dialog{state = State}, UpdatedResp}
+            CSeq = ersip_sipmsg:get(cseq, RespSipMsg),
+            case ersip_hdr_cseq:method(CSeq) of
+                RequestMethod ->
+                    State = state_by_response(RespSipMsg),
+                    {Dialog#dialog{state = State}, UpdatedResp};
+                _ ->
+                    {Dialog, UpdatedResp}
+            end
     end.
 
 %% @doc New dialog on UAC side.
@@ -437,7 +444,8 @@ do_uas_create(Request, Response) ->
             %% local URI MUST be set to the URI in the To field
             local_uri  = ersip_hdr_fromto:uri(ReqTo),
             %%
-            state = State
+            state = State,
+            request_method = ersip_hdr_cseq:method(ReqCSeq)
            }.
 
 -spec uac_create(ersip_request:request(), ersip_sipmsg:sipmsg()) -> dialog().
