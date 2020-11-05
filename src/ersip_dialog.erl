@@ -184,13 +184,14 @@ uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early, request_method =
     %% Independent of the method, if a request outside of a dialog generates
     %% a non-2xx final response, any early dialogs created through
     %% provisional responses to that request are terminated.
+    CSeq = ersip_sipmsg:get(cseq, RespSipMsg),
+    RespMethod = ersip_hdr_cseq:method(CSeq),
     case ersip_sipmsg:status(RespSipMsg) of
-        Status when Status >= 300 ->
+        Status when Status >= 300 andalso RespMethod =:= RequestMethod ->
             terminate_dialog;
         _ ->
             UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
-            CSeq = ersip_sipmsg:get(cseq, RespSipMsg),
-            case ersip_hdr_cseq:method(CSeq) of
+            case RespMethod of
                 RequestMethod ->
                     State = state_by_response(RespSipMsg),
                     {Dialog#dialog{state = State}, UpdatedResp};
