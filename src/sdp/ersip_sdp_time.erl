@@ -66,11 +66,11 @@ parse(Bin) ->
 -spec new() -> timings().
 new() ->
     #timings{
-        items = #sess_item{
+        items = [#sess_item{
             start = 0,
             stop = 0,
             repeat = []
-        },
+        }],
         zone = undefined
     }.
 
