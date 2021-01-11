@@ -8,7 +8,8 @@
 
 -module(ersip_sdp_bandwidth).
 
--export([tias/1,
+-export([new/0,
+         tias/1,
          ct/1,
          as/1,
          experimental/2,
@@ -60,6 +61,10 @@ experimental(Name, {bandwidth, BWList}) ->
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_bw_parse(Bin, {bandwidth, []}).
+
+-spec new() -> bandwidth().
+new() ->
+    {bandwidth, []}.
 
 -spec assemble(bandwidth()) -> iolist().
 assemble({bandwidth, BWList}) ->

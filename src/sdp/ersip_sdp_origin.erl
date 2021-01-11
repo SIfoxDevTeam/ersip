@@ -8,9 +8,12 @@
 
 -module(ersip_sdp_origin).
 
--export([username/1,
+-export([new/0,
+         username/1,
          session_id/1,
+         set_session_id/2,
          session_version/1,
+         set_session_version/2,
          address/1,
          set_address/2,
          parse/1,
@@ -42,9 +45,17 @@ username(#origin{username = U}) ->
 session_id(#origin{sess_id = Id}) ->
     Id.
 
+-spec set_session_id(non_neg_integer, origin()) -> origin().
+set_session_id(Id, #origin{} = Origin) ->
+    Origin#origin{sess_id = Id}.
+
 -spec session_version(origin()) -> non_neg_integer().
 session_version(#origin{sess_version = Ver}) ->
     Ver.
+
+-spec set_session_version(non_neg_integer, origin()) -> origin().
+set_session_version(Ver, #origin{} = Origin) ->
+    Origin#origin{sess_version = Ver}.
 
 -spec address(origin()) -> ersip_sdp_addr:addr().
 address(#origin{address = Addr}) ->
@@ -80,6 +91,15 @@ parse(<<"o=", Rest/binary>>) ->
     end;
 parse(V) ->
     ersip_sdp_aux:unexpected_attribute_error(origin, V).
+
+%% @doc Create new SDP Origin.
+-spec new() -> origin().
+new() ->
+    #origin{
+        username = <<"-">>,
+        sess_id = erlang:system_time(seconds),
+        sess_version = erlang:system_time(seconds)
+    }.
 
 -spec assemble(origin()) -> iolist().
 assemble(#origin{} = Origin) ->

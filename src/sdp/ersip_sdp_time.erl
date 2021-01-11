@@ -8,7 +8,8 @@
 
 -module(ersip_sdp_time).
 
--export([start/1,
+-export([new/0,
+         start/1,
          stop/1,
          parse/1,
          assemble/1
@@ -60,6 +61,18 @@ parse(Bin) ->
         {error, _} = Error ->
             Error
     end.
+
+%% @doc Create new SDP Time.
+-spec new() -> timings().
+new() ->
+    #timings{
+        items = #sess_item{
+            start = 0,
+            stop = 0,
+            repeat = []
+        },
+        zone = undefined
+    }.
 
 -spec assemble(timings()) -> iolist().
 assemble(#timings{items = Items, zone  = Zone}) ->

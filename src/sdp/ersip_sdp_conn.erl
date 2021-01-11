@@ -8,7 +8,8 @@
 
 -module(ersip_sdp_conn).
 
--export([addr/1,
+-export([new/0,
+         addr/1,
          set_addr/2,
          ttl/1,
          set_ttl/2,
@@ -75,6 +76,11 @@ parse(<<"c=", Rest/binary>>) ->
     end;
 parse(Other) ->
     {ok, undefined, Other}.
+
+%% @doc Create new SDP Conn.
+-spec new() -> conn().
+new() ->
+    #conn{num_addrs = 1}.
 
 -spec assemble(undefined | conn()) -> iolist().
 assemble(undefined) ->

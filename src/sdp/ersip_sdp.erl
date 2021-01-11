@@ -9,7 +9,8 @@
 
 -module(ersip_sdp).
 
--export([origin/1,
+-export([new/0,
+         origin/1,
          set_origin/2,
          session_name/1,
          info/1,
@@ -171,6 +172,24 @@ parse(Bin) ->
         {error, Reason} ->
             {error, {invalid_sdp, Reason}}
     end.
+
+%% @doc Create new SDP.
+-spec new() -> sdp().
+new() ->
+    #sdp{
+        origin       = ersip_sdp_origin:new(),
+        session_name = <<"-">>,
+        info         = undefined,
+        uri          = undefined,
+        emails       = [],
+        phones       = [],
+        conn         = ersip_sdp_conn:new(),
+        bandwidth    = ersip_sdp_bandwidth:new(),
+        timings      = ersip_sdp_time:new(),
+        key          = undefined,
+        attrs        = [],
+        medias       = []
+    }.
 
 -spec assemble(sdp()) -> iolist().
 assemble(#sdp{} = SDP) ->

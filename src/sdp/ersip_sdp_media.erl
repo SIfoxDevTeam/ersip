@@ -8,10 +8,14 @@
 
 -module(ersip_sdp_media).
 
--export([type/1,
+-export([new/0,
+         type/1,
+         set_type/2,
          port/1,
+         set_port/2,
          port_num/1,
          protocol/1,
+         set_protocol/2,
          formats/1,
          set_formats/2,
          conn/1,
@@ -53,9 +57,17 @@
 type(#media{type = T}) ->
     T.
 
+-spec set_type(binary(), media()) -> media().
+set_type(T, #media{} = Media) ->
+    Media#media{type = T}.
+
 -spec port(media()) -> inet:port_number().
 port(#media{port = P}) ->
     P.
+
+-spec set_port(inet:port_number(), media()) -> media().
+set_port(P, #media{} = Media) ->
+    Media#media{port = P}.
 
 -spec port_num(media()) -> non_neg_integer() | undefined.
 port_num(#media{port_num = PN}) ->
@@ -64,6 +76,10 @@ port_num(#media{port_num = PN}) ->
 -spec protocol(media()) -> nonempty_list(binary()).
 protocol(#media{protocol = P}) ->
     P.
+
+-spec set_protocol(nonempty_list(binary()), media()) -> media().
+set_protocol(P, #media{} = Media) ->
+    Media#media{protocol = P}.
 
 -spec formats(media()) -> [binary()].
 formats(#media{fmts = FMTS}) ->
@@ -92,6 +108,20 @@ set_attrs(A, #media{} = Media) ->
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_parse_medias(Bin, []).
+
+-spec new() -> media().
+new() ->
+    #media{
+        type      = <<"audio">>,
+        port_num  = 1,
+        protocol  = [<<"RTP">>, <<"AVP">>],
+        fmts      = [],
+        title     = undefined,
+        conn      = undefined,
+        bandwidth = ersip_sdp_bandwidth:new(),
+        key       = undefined,
+        attrs     = []
+    }.
 
 -spec assemble([media()]) -> iolist().
 assemble(Medias) ->
