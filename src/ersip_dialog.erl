@@ -289,6 +289,7 @@ uac_trans_result(timeout, _, #dialog{}) ->
     %% the UAC SHOULD terminate the dialog.
     terminate_dialog;
 uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
+    TerminateDialog_408_481 = ersip_config:terminate_dialog_408_481(),
     case ersip_sipmsg:status(Resp) of
         Code when Code >= 200 andalso Code =< 299 andalso ReqType == target_refresh ->
             %% When a UAC receives a 2xx response to a target refresh
@@ -305,12 +306,12 @@ uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
                     %% In all other cases contact is invalid and we ignore it
                     {ok, Dialog1}
             end;
-        481 ->
+        481 when TerminateDialog_408_481 =:= true ->
             %% If the response for a request within a dialog is a 481
             %% (Call/Transaction Does Not Exist) or a 408 (Request
             %% Timeout), the UAC SHOULD terminate the dialog
             terminate_dialog;
-        408 ->
+        408 when TerminateDialog_408_481 =:= true ->
             terminate_dialog;
         _ ->
             {ok, Dialog}
