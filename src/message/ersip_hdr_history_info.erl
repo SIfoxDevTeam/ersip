@@ -9,7 +9,11 @@
          uri/1,
          params/1,
          param/2,
-         parse_hdr/1
+         parse_hdr/1,
+         new/1,
+         set_param/3,
+         assemble/1,
+         assemble_bin/1
         ]).
 
 -export_type([history_info/0]).
@@ -31,6 +35,11 @@
 %% API
 %%===================================================================
 
+%% @doc Create history_info field from Uri.
+-spec new(ersip_uri:uri()) -> history_info().
+new(URI) ->
+    #history_info{display_name = {display_name, []}, uri = URI}.
+
 %% @doc URI from History-Info header.
 -spec uri(history_info()) -> ersip_uri:uri().
 uri(#history_info{uri = URI}) ->
@@ -50,6 +59,16 @@ params(#history_info{hparams = HP}) ->
 -spec param(binary(), history_info()) -> {ok, binary()} | not_found.
 param(Key, #history_info{hparams = HParams}) ->
     ersip_hparams:find_raw(Key, HParams).
+
+-spec set_param(Name :: binary(), PValue :: binary(), history_info()) -> history_info().
+set_param(PName, PValue, #history_info{hparams = HParams} = Contact)
+    when is_binary(PName), is_binary(PValue) ->
+    case ersip_hparams:set(PName, PValue, fun parse_known/2, HParams) of
+        {ok, NewHParam} ->
+            Contact#history_info{hparams = NewHParam};
+        {error, Reason} ->
+            error(Reason)
+    end.
 
 %% @doc Parse History-Info header from binary.
 -spec parse(binary()) -> parse_result().
@@ -77,6 +96,23 @@ parse_hdr(Bin) ->
         {error, Reason} ->
             {error, {invalid_history_info, Reason}}
     end.
+
+%% @doc Serialize header to iolist.
+-spec assemble(history_info()) -> iolist().
+assemble(#history_info{} = HistoryInfo) ->
+    #history_info{display_name = DN, uri = URI, hparams = HParams} = HistoryInfo,
+    HParamsIO0 = ersip_hparams:assemble(HParams),
+    HParamsIO =
+        case ersip_iolist:is_empty(HParamsIO0) of
+            true -> [];
+            false -> [$; | HParamsIO0]
+        end,
+    [ersip_nameaddr:assemble(DN, URI), HParamsIO].
+
+%% @doc Serialize header to binary.
+-spec assemble_bin(history_info()) -> binary().
+assemble_bin(#history_info{} = HistoryInfo) ->
+    iolist_to_binary(assemble(HistoryInfo)).
 
 %%===================================================================
 %% Helpers

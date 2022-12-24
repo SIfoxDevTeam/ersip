@@ -4,7 +4,7 @@
 
 -module(ersip_hdr_history_info_list).
 
--export([parse/1]).
+-export([parse/1, build/2]).
 
 -include("ersip_headers.hrl").
 
@@ -36,6 +36,16 @@ parse(Header) ->
             Error
     end.
 
+%% @doc Build raw SIP header.
+-spec build(HeaderName :: binary(), history_info_list()) -> ersip_hdr:header().
+build(HdrName, HistoryInfoList) when is_list(HistoryInfoList) ->
+    Hdr = ersip_hdr:new(HdrName),
+    lists:foldl(
+        fun(HistoryInfo, HdrAcc) ->
+            ersip_hdr:add_value(ersip_hdr_history_info:assemble(HistoryInfo), HdrAcc)
+        end,
+        Hdr,
+        HistoryInfoList).
 
 %%===================================================================
 %% Internal implementation
