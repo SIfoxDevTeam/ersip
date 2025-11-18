@@ -13,6 +13,7 @@
          make/2,
          rseq/1,
          cseq/1,
+         set_cseq/2,
          parse/1,
          assemble/1,
          assemble_bin/1,
@@ -72,6 +73,11 @@ rseq(#rack{rseq = RSeq}) ->
 -spec cseq(rack()) -> ersip_hdr_cseq:cseq().
 cseq(#rack{cseq = CSeq}) ->
     CSeq.
+
+%% @doc Set CSeq of the RAck.
+-spec set_cseq(ersip_hdr_cseq:cseq(), rack()) -> rack().
+set_cseq(CSeq, #rack{} = RAck) ->
+    RAck#rack{cseq = CSeq}.
 
 %% @doc Parse RAck from binary or raw SIP header representation.
 -spec parse(ersip_hdr:header()) -> parse_result().

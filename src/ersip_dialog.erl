@@ -802,19 +802,26 @@ maybe_update_cseq(InReq, #dialog{local_seq = empty}, Req) ->
 maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, local_invite_seq = LocalInviteSeq}, Req) ->
     ACK = ersip_method:ack(),
     CANCEL = ersip_method:cancel(),
-    case ersip_sipmsg:method(InReq) of
-        Method when Method == ACK orelse Method == CANCEL ->
-            case ersip_sipmsg:find(cseq, InReq) of
-                {ok, CSeq} ->
-                    ersip_sipmsg:set(cseq, CSeq, Req);
-                not_found when is_integer(LocalInviteSeq) ->
-                    %% Use INIVTE Seq for ACK/CANCEL. It is possible to have another requests between INVITE and ACK/CANCEL, for example PRACK
-                    set_cseq(InReq, LocalInviteSeq-1, Req);
-                not_found ->
-                    set_cseq(InReq, LocalSeq-1, Req)
-            end;
-        _ ->
-            set_cseq(InReq, LocalSeq, Req)
+    Req1 =
+        case ersip_sipmsg:method(InReq) of
+            Method when Method == ACK orelse Method == CANCEL ->
+                case ersip_sipmsg:find(cseq, InReq) of
+                    {ok, CSeq} ->
+                        ersip_sipmsg:set(cseq, CSeq, Req);
+                    not_found when is_integer(LocalInviteSeq) ->
+                        %% Use INIVTE Seq for ACK/CANCEL. It is possible to have another requests between INVITE and ACK/CANCEL, for example PRACK
+                        set_cseq(InReq, LocalInviteSeq-1, Req);
+                    not_found ->
+                        set_cseq(InReq, LocalSeq-1, Req)
+                end;
+            _ ->
+                set_cseq(InReq, LocalSeq, Req)
+        end,
+    case is_integer(LocalInviteSeq) of
+        true ->
+            set_rack_cseq(InReq, LocalInviteSeq, Req1);
+        false ->
+            set_rack_cseq(InReq, LocalSeq, Req1)
     end.
 
 -spec set_cseq(ersip_sipmsg:sipmsg(), pos_integer(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
@@ -828,3 +835,20 @@ set_cseq(InReq, LocalSeq, Req) ->
                    CSeq0
            end,
     ersip_sipmsg:set(cseq, CSeq, Req).
+
+-spec set_rack_cseq(ersip_sipmsg:sipmsg(), pos_integer(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+set_rack_cseq(InReq, LocalSeq, Req) ->
+    case ersip_sipmsg:method(InReq) =:= ersip_method:prack() of
+        true ->
+            case ersip_sipmsg:find(rack, InReq) of
+                {ok, Rack0} ->
+                    CSeq0 = ersip_hdr_rack:cseq(Rack0),
+                    CSeq = ersip_hdr_cseq:set_number(LocalSeq, CSeq0),
+                    Rack = ersip_hdr_rack:set_cseq(CSeq, Rack0),
+                    ersip_sipmsg:set(rack, Rack, Req);
+                not_found ->
+                    Req
+            end;
+        false ->
+            Req
+    end.
